@@ -8,6 +8,7 @@ from src.core import (
     ApplicationHabsev, 
     ApplicationLuminaled,
     ApplicationElectromotor,
+    ApplicationVolta,
 )
 from src.core.settings import load_settings
 
@@ -31,11 +32,12 @@ async def start_application(app_class):
 
 async def main() -> None:
     app_classes = [
-        ApplicationSupraten,
+        # ApplicationSupraten,
         # ApplicationIek,
         # ApplicationHabsev,
         # ApplicationLuminaled,
-        # ApplicationElectromotor
+        # ApplicationElectromotor,
+        ApplicationVolta
     ]
 
     for app_class in app_classes:
@@ -47,8 +49,8 @@ async def main() -> None:
 if __name__ == "__main__":
     try:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        # asyncio.run(main())
-        asyncio.run(scheduler())
+        asyncio.run(main())
+        # asyncio.run(scheduler())
     except KeyboardInterrupt:
         print("Завершення роботи користувачем.")
 
