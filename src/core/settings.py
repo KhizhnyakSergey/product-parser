@@ -39,6 +39,7 @@ class GoogleSettings(BaseSettings):
     habsev_index_to_parse: List[int]
     luminaled_index_to_parse: List[int]
     electromotor_index_to_parse: List[int]
+    volta_index_to_parse: List[int]
     
     json_name: str
     # data_type: str
