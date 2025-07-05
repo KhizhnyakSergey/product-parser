@@ -9,6 +9,7 @@ from src.core import (
     ApplicationLuminaled,
     ApplicationElectromotor,
     ApplicationVolta,
+    ApplicationPanlight,
 )
 from src.core.settings import load_settings
 
@@ -37,7 +38,8 @@ async def main() -> None:
         # ApplicationHabsev,
         # ApplicationLuminaled,
         # ApplicationElectromotor,
-        ApplicationVolta
+        # ApplicationVolta,
+        ApplicationPanlight
     ]
 
     for app_class in app_classes:
