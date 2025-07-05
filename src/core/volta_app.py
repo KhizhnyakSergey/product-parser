@@ -115,8 +115,6 @@ class ApplicationVolta:
             self.logger.info(f"Всего товаров найдено: {len(self.data)}")
     
             for count, url in enumerate(self.data, 1):
-                self.logger.info(f" _task_html_data  count : {count}")
-
                 # async with VoltaAPI() as api:
                 #     task = asyncio.create_task(self._task_html_data(api, url, count))
                 #     tasks_html_data.append(task)
@@ -130,7 +128,6 @@ class ApplicationVolta:
 
             tasks_parse_html = []
             for count, item in enumerate(results, start=1):
-                self.logger.info(f"count: {count}")
                 if item is None:
                     continue  
                 url, response = item
