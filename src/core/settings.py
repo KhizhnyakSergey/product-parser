@@ -41,6 +41,7 @@ class GoogleSettings(BaseSettings):
     electromotor_index_to_parse: List[int]
     volta_index_to_parse: List[int]
     panlight_index_to_parse: List[int]
+    cablu_index_to_parse: List[int]
     
     json_name: str
     # data_type: str
