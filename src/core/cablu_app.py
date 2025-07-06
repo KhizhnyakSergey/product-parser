@@ -5,14 +5,14 @@ from datetime import datetime
 from aiohttp import ClientConnectorError
 from src.session.errors import NetworkError, NotFoundError, APIError, ServerError
 
-from src.api.panlight import PanlightAPI
+from src.api.cablu import CabluAPI
 from src.core.settings import load_settings, Settings, path
-from src.parser.panlight_bs4 import data_extraction
+from src.parser.cablu_bs4 import data_extraction
 from src.utils.logger import Logger
 from src.utils.google import GoogleSheetsWriter
 
 
-class ApplicationPanlight:
+class ApplicationCablu:
     
     def __init__(
             self, 
@@ -31,7 +31,7 @@ class ApplicationPanlight:
 
         retries = 5  # Количество попыток
 
-        async with PanlightAPI() as ses:
+        async with CabluAPI() as ses:
             categories = None
             for attempt in range(retries):
                 try:
@@ -47,6 +47,8 @@ class ApplicationPanlight:
                     self.logger.exception(f"Непредвиденная ошибка: {type(e).__name__} -> {e}")
 
         categories_list = list(categories.keys())
+        for idx, name in enumerate(categories_list, 1):
+            self.logger.info(f"{idx}. {name}")
         # Выбор пользователем
         while True:
             try:
@@ -66,31 +68,38 @@ class ApplicationPanlight:
 
         carrent_date = datetime.now()
         formatted_date = carrent_date.strftime("%Y-%m-%d %H:%M:%S")
-        to_parse = self.settings.google.panlight_index_to_parse
-        name_list = f'Panlight {to_parse}'
+        to_parse = self.settings.google.cablu_index_to_parse
+        name_list = f'Cablu {to_parse}'
         self.logger.info(r'''
-        .______        ___      .__   __.  __       __    _______  __    __  .___________.
-        |   _  \      /   \     |  \ |  | |  |     |  |  /  _____||  |  |  | |           |
-        |  |_)  |    /  ^  \    |   \|  | |  |     |  | |  |  __  |  |__|  | `---|  |----`
-        |   ___/    /  /_\  \   |  . `  | |  |     |  | |  | |_ | |   __   |     |  |     
-        |  |       /  _____  \  |  |\   | |  `----.|  | |  |__| | |  |  |  |     |  |     
-        | _|      /__/     \__\ |__| \__| |_______||__|  \______| |__|  |__|     |__|   
+          ______      ___      .______    __       __    __  
+         /      |    /   \     |   _  \  |  |     |  |  |  | 
+        |  ,----'   /  ^  \    |  |_)  | |  |     |  |  |  | 
+        |  |       /  /_\  \   |   _  <  |  |     |  |  |  | 
+        |  `----. /  _____  \  |  |_)  | |  `----.|  `--'  | 
+         \______|/__/     \__\ |______/  |_______| \______/  
+                                                     
         ''')
         self.logger.info(f'Начало парсинга {formatted_date} {to_parse}')
 
+        # async with CabluAPI() as ses:
+    
+        #     categories = await ses.get_categories()
+            # print(categories)
+
+        # return
         for category in to_parse:
             tasks = []
-            name_category, url = await self.choise_category(category)
-
-            categories = await self.get_all_urls_in_category_with_retry(url)
-            if not categories:
+            name_category, urls = await self.choise_category(category)
+            # categories = await self.get_all_urls_in_category_with_retry(url)
+            if not urls:
                 self.logger.info(f'Не смог собрать ссылки с категории {name_category}')
                 continue
+            # print(categories)
 
-            for name, url_category in categories.items():
-                task = asyncio.create_task(self._task_all_products(url_category))
+            for url in urls:
+                task = asyncio.create_task(self._task_all_products(url))
                 tasks.append(task)
-
+            
             results = await asyncio.gather(*tasks)
             for result in results:
                 if result:
@@ -99,6 +108,7 @@ class ApplicationPanlight:
 
             tasks_html_data = []
             self.logger.info(f"Всего товаров найдено: {len(self.data)}")
+            # return
             for count, url in enumerate(self.data, 1):
                 task = asyncio.create_task(self._task_html_data(url, count))
                 tasks_html_data.append(task)
@@ -129,9 +139,9 @@ class ApplicationPanlight:
             worksheet_name=name_list,
             logger=self.logger,
             rows=rows + 100,
-            cols=140
+            cols=100
         )
-        await write.write_to_google_sheets(self.final_data, currency='MDL')
+        await write.write_to_google_sheets(self.final_data, currency='LEI')
         self.final_data.clear()
         self.logger.info(f'Парсинг завершено {name_list} ...\n')
 
@@ -140,7 +150,7 @@ class ApplicationPanlight:
         async with self.semaphore:  # Use semaphore here
             retries = 3  # Количество попыток
             for attempt in range(retries):
-                async with PanlightAPI() as api:
+                async with CabluAPI() as api:
                     try:
                         result = await api.get_html_product(url)
                         self.logger.info(f'{count} Запрос на товар -> {url}')
@@ -166,7 +176,7 @@ class ApplicationPanlight:
             retries = 3  
             for attempt in range(retries):
                 try:
-                    async with PanlightAPI() as api:
+                    async with CabluAPI() as api:
                         result = await api.get_all_products(url) 
                         self.logger.info(f'Спарсил страницы -> {url} ✅')
                         return result if result is not None else []
@@ -185,7 +195,7 @@ class ApplicationPanlight:
         for attempt in range(retries):
             try:
                 # Создаем новую сессию для каждой попытки
-                async with PanlightAPI() as ses:
+                async with CabluAPI() as ses:
                     # Попытка получить все URL из категории
                     categories = await ses.get_all_urls_in_category(url)
                     break  # Если запрос успешен, выходим из цикла
