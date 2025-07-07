@@ -1,10 +1,10 @@
 import asyncio
-from typing import Optional, Dict, Tuple
+from typing import Optional, Tuple
 from datetime import datetime
 
 from aiohttp import ClientConnectorError
-from src.session.errors import NetworkError, NotFoundError, APIError, ServerError
 
+from src.session.errors import NetworkError, NotFoundError, APIError
 from src.api.okm import OkmAPI
 from src.core.settings import load_settings, Settings, path
 from src.utils.logger import Logger
@@ -28,7 +28,7 @@ class ApplicationOkm:
 
     async def choise_category(self, category_num: int) -> Tuple[str]:
 
-        retries = 5  
+        retries = 3  
         async with OkmAPI() as ses:
             categories = None
             for attempt in range(retries):
@@ -45,10 +45,6 @@ class ApplicationOkm:
                     self.logger.exception(f"Непредвиденная ошибка: {type(e).__name__} -> {e}")
 
         categories_list = list(categories.items())
-        # for idx, (name, url) in enumerate(categories_list, 1):
-        #     self.logger.info(f"{idx}. {name}")
-
-        # Проверяем выбор пользователя
         if not 1 <= category_num <= len(categories_list):
             raise ValueError("Некорректный номер категории")
 

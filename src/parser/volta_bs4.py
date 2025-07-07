@@ -14,7 +14,6 @@ async def data_extraction(response):
 
     main_info = soup.find('div', attrs={'class': 'row space-between slider-buy'})
     if not main_info:
-        print('***********************')
         return None 
     
     

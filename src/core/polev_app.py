@@ -1,20 +1,21 @@
 import asyncio
+import random
 from typing import Optional, Dict, Tuple
 from datetime import datetime
 
 from aiohttp import ClientConnectorError
-from src.session.errors import (
-    NetworkError, 
-    NotFoundError, 
-    APIError, 
-    ServerError,
-)
 
 from src.api.polev import PolevAPI
 from src.core.settings import load_settings, Settings, path
 from src.parser.polev_bs4 import data_extraction
 from src.utils.logger import Logger
 from src.utils.google import GoogleSheetsWriter
+from src.session.errors import (
+    NetworkError, 
+    NotFoundError, 
+    APIError, 
+    ServerError,
+)
 
 
 class ApplicationPolev:
@@ -34,39 +35,29 @@ class ApplicationPolev:
 
     async def choise_category(self, category_num: int) -> Tuple[str]:
 
-        retries = 5  # Количество попыток
-
+        retries = 3  
         async with PolevAPI() as ses:
             categories = None
             for attempt in range(retries):
                 try:
-                    categories = await ses.get_categories()  # Запрос категорий
+                    categories = await ses.get_categories()  
                     break  # Если запрос успешен, выходим из цикла
-                except (ClientConnectorError, NetworkError, TimeoutError) as e:
-                    self.logger.warning(f"Попытка {attempt + 1}/{retries} не удалась: {type(e).__name__}")
+                except (ClientConnectorError, NetworkError, TimeoutError, APIError) as e:
+                    self.logger.warning(f"{attempt + 1}/{retries} Ошибка: {type(e).__name__}")
                     if attempt < retries - 1:
-                        await asyncio.sleep(5)  # Ждем 5 секунд перед повторной попыткой
+                        await asyncio.sleep(5)  
                     else:
-                        self.logger.error(f"Не удалось получить категории после {retries} попыток.")
+                        self.logger.error(f"Не удалось получить категории.")
                 except Exception as e:
                     self.logger.exception(f"Непредвиденная ошибка: {type(e).__name__} -> {e}")
 
-        categories_list = list(categories.keys())
-        for idx, name in enumerate(categories_list, 1):
-            self.logger.info(f"{idx}. {name}")
-        # Выбор пользователем
-        while True:
-            try:
-                choice = category_num - 1
-                if 0 <= choice < len(categories_list):
-                    selected_name = categories_list[choice]
-                    selected_url = categories[selected_name]
-                    self.logger.info(f"➡️ Вы выбрали: {selected_name} ({selected_url})")
-                    return selected_name, selected_url
-                else:
-                    self.logger.info(f"Некорректный ввод. Попробуйте снова.")
-            except ValueError:
-                self.logger.info(f"Введите число!")
+        categories_list = list(categories.items())
+        if not 1 <= category_num <= len(categories_list):
+            return 'None', 'https://www.google.com/'
+
+        selected_name, selected_url = categories_list[category_num - 1]
+        self.logger.info(f"➡️ Выбрано: {selected_name} ({selected_url})")
+        return selected_name, selected_url
 
 
     async def _task_html_data(self, url: str, count: int) -> None:
@@ -96,36 +87,35 @@ class ApplicationPolev:
             self.logger.info(f' {count} Готово -> {url} ✅')
 
 
-    async def _task_all_products(self, api: PolevAPI, url: str) -> None:
+    async def _task_all_products(self, url: str) -> None:
         async with self.semaphore:  # Use semaphore here
             retries = 3  # Количество попыток
             for attempt in range(retries):
-                try:
-                    result = await api.get_all_products(url) 
-                    self.logger.info(f'Спарсил страницы -> {url} ✅')
-                    return result if result is not None else []
-                except (ClientConnectorError, NetworkError, TimeoutError) as e:
-                    if attempt < retries - 1:
-                        await asyncio.sleep(6)
-                        self.logger.error(f'Ошибка {e}')
-                        # result = await api.get_all_products(url) 
-                        # return result if result is not None else []
-                except KeyboardInterrupt:
-                    self.logger.error(f'Завершение таски по запросу пользователя.')
-                except Exception as e:
-                    self.logger.exception(f'{type(e).__name__} -> {e}')
+                async with PolevAPI() as api:
+                    try:
+                        result = await api.get_all_products(url) 
+                        self.logger.info(f'Спарсил страницы -> {url} ✅')
+                        return result if result is not None else []
+                    except (ClientConnectorError, NetworkError, TimeoutError, APIError) as e:
+                        if attempt < retries - 1:
+                            retry_delay = random.uniform(2.0, 4.0)
+                            self.logger.warning(
+                                f'({attempt + 1}/{retries}) Повтор через {retry_delay:.1f} сек. Ошибка: {type(e).__name__}'
+                            )
+                    except KeyboardInterrupt:
+                        self.logger.error(f'Завершение таски по запросу пользователя.')
+                    except Exception as e:
+                        self.logger.exception(f'{type(e).__name__} -> {e}')
         
 
     async def get_all_urls_in_category_with_retry(self, url: str) -> Dict[str, str]:
-        retries = 5  # Количество попыток
+        retries = 3  
         categories = None
         for attempt in range(retries):
             try:
-                # Создаем новую сессию для каждой попытки
                 async with PolevAPI() as ses:
-                    # Попытка получить все URL из категории
                     categories = await ses.get_all_urls_in_category(url)
-                    break  # Если запрос успешен, выходим из цикла
+                    return categories
             except (ClientConnectorError, 
                     NetworkError, 
                     TimeoutError, 
@@ -134,12 +124,47 @@ class ApplicationPolev:
                 ) as e:
                 self.logger.warning(f"Попытка {attempt + 1}/{retries} не удалась: {type(e).__name__}")
                 if attempt < retries - 1:
-                    await asyncio.sleep(5)  # Ждем 5 секунд перед повторной попыткой
+                    await asyncio.sleep(4)  
                 else:
                     self.logger.error(f"Не удалось получить категории после {retries} попыток.")
             except Exception as e:
                 self.logger.exception(f"Непредвиденная ошибка: {type(e).__name__} -> {e}")
-        return categories
+        return None
+    
+
+    async def _task_html_to_data(self, url: str, count: int) -> tuple[str, str] | None:
+        async with self.semaphore:
+            retries = 3
+            for attempt in range(retries):
+                async with PolevAPI() as api:
+                    try:
+                        await asyncio.sleep(random.uniform(0.1, 1.3))
+                        response = await api.get_html_product(url)
+                        if response:
+                            data = await data_extraction(response) 
+                        else:
+                            continue
+                        self.final_data[url] = data
+                        self.logger.info(f' {count} Готово -> {url} ✅')
+                        return True
+                    except (ClientConnectorError, NetworkError, NotFoundError, APIError) as e:
+                        if attempt < retries - 1:
+                            retry_delay = random.uniform(3.0, 5.0)
+                            self.logger.warning(
+                                f'{count} ({attempt + 1}/{retries}) Повтор через {retry_delay:.1f} сек. Ошибка: {type(e).__name__}'
+                            )
+                            await asyncio.sleep(retry_delay)
+                            continue
+                        self.logger.error(f'{count} Превышены попытки для {url}')
+                    except KeyboardInterrupt:
+                        self.logger.error("Остановлено пользователем")
+                        raise
+                    except Exception as e:
+                        self.logger.exception(f'{count} Критическая ошибка: {type(e).__name__}')
+                        if attempt == retries - 1:  
+                            return None
+        
+        return None
     
 
     async def start(self):
@@ -168,9 +193,8 @@ class ApplicationPolev:
                 continue
 
             for name, url_category in categories.items():
-                async with PolevAPI() as api:
-                    task = asyncio.create_task(self._task_all_products(api, url_category))
-                    tasks.append(task)
+                task = asyncio.create_task(self._task_all_products(f'{url_category}'))
+                tasks.append(task)
 
             results = await asyncio.gather(*tasks)
             for result in results:
@@ -181,23 +205,13 @@ class ApplicationPolev:
             self.logger.info(f"Всего товаров найдено: {len(self.data)}")
     
             for count, url in enumerate(self.data, 1):
-                task = asyncio.create_task(self._task_html_data(url, count))
+                task = asyncio.create_task(self._task_html_to_data(url, count))
                 tasks_html_data.append(task)
-                
-            results = await asyncio.gather(*tasks_html_data)
-            tasks_html_data.clear()
-            tasks_parse_html = []
-            for count, item in enumerate(results, start=1):
-                if item is None:
-                    continue  
-                url, response = item
 
-                task = asyncio.create_task(self._task_parse_html(url, response, count))
-                tasks_parse_html.append(task)
-
-            await asyncio.gather(*tasks_parse_html)
+            await asyncio.gather(*tasks_html_data)
             self.logger.info(f'Парсинг категории {name_category} завершено ...\n')
             self.data.clear()
+            tasks_html_data.clear()
             
         self.logger.info(f'Начинаю запись в гугл таблицу...\n')
         self.logger.info(f'Всего товаров {len(self.final_data)}\n')

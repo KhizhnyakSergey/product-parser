@@ -123,7 +123,7 @@ class ElectromotorAPI:
         for page in range(0, num_pages):
             html = await self._make_request(url, page + 1)
             soup = BeautifulSoup(html, "lxml")
-            self.logger.info(f'{url}page/{page + 1}/')
+            # self.logger.info(f'{url}page/{page + 1}/')
             products = soup.find_all('h3', attrs={'class': 'product-title'})
             for elem in products:
                 url_a = elem.find('a').get('href')
