@@ -178,3 +178,13 @@ okm
 21. АВТОЭЛЕКТРОСТАНЦИИ
 22. МИНИ КОЛОННЫ, НАПОЛЬНЫЕ / МЕБЕЛЬНЫЕ КОРОБКИ
 23. ПРОЧИЕ ТОВАРЫ
+
+
+polev
+1. Cabluri, conductori si accesorii
+2. Aparate de comutație si protecție
+3. Dispozitive industriale de comandă și protecție
+4. Dulapuri și cutii de distribuție
+5. Produse 10kV
+6. Решения для питания и контроля медицинского оборудоывания
+7. Инструменты

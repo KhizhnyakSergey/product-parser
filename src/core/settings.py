@@ -43,13 +43,10 @@ class GoogleSettings(BaseSettings):
     panlight_index_to_parse: List[int]
     cablu_index_to_parse: List[int]
     okm_index_to_parse: List[int]
+    polev_index_to_parse: List[int]
     
     json_name: str
-    # data_type: str
-    # time_range: str
-    # list_name: str
 
-    
 class Settings(BaseSettings):
 
     google: GoogleSettings
