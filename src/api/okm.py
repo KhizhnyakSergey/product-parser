@@ -10,6 +10,7 @@ from src.session.aiohttp import AiohttpSession
 from src.utils.user_agent import get_user_agent
 from src.core.settings import load_settings
 from src.utils.logger import Logger
+from src.utils.normalize_data import normalize_name
 
 
 class OkmAPI:
@@ -135,5 +136,7 @@ class OkmAPI:
             value = attribute.get('attribute_value')
             if name and value: 
                 result[name] = value
+
+        result = await normalize_name(result)
 
         return result
