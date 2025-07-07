@@ -12,6 +12,7 @@ from src.core import (
     ApplicationPanlight,
     ApplicationCablu,
     ApplicationOkm,
+    ApplicationPolev,
 )
 from src.core.settings import load_settings
 
@@ -43,7 +44,8 @@ async def main() -> None:
         # ApplicationVolta,
         # ApplicationPanlight,
         # ApplicationCablu,
-        ApplicationOkm
+        # ApplicationOkm,
+        ApplicationPolev
     ]
 
     for app_class in app_classes:

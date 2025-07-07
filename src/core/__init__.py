@@ -7,6 +7,7 @@ from src.core.volta_app import ApplicationVolta
 from src.core.panlight_app import ApplicationPanlight
 from src.core.cablu_app import ApplicationCablu
 from src.core.okm_app import ApplicationOkm
+from src.core.polev_app import ApplicationPolev
 from src.core.settings import load_settings
 
 
@@ -21,4 +22,5 @@ __all__ = (
     'ApplicationPanlight',
     'ApplicationCablu',
     'ApplicationOkm',
+    'ApplicationPolev',
 )
