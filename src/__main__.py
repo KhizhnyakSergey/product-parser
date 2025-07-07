@@ -41,7 +41,7 @@ async def main() -> None:
         ApplicationHabsev,
         ApplicationLuminaled,
         ApplicationElectromotor,
-        ApplicationVolta,
+        ApplicationVolta, 
         ApplicationPanlight,
         ApplicationCablu,
         ApplicationOkm,

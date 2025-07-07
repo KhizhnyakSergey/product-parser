@@ -54,8 +54,6 @@ async def data_extraction_supraten(response):
 
         data = {
             "Название": main_div.find('.//h1[@class="sp-single-product__title"]').text_content().strip(),
-            "Название на русском": None,
-            "Название на румынском": None,
             "Артикул": main_div.find('.//div[@class="sp-single-product__sku"]').text_content().strip().split(":")[-1].strip(),
             "Категория": category,
             # "img_url": main_div.find('.//a[@data-lightbox="product-slider"]').get('href'),
@@ -117,8 +115,6 @@ async def data_extraction_iek(response):
 
     data = {
         "Название": soup.select_one("h1.product_title").get_text(strip=True),
-        "Название на русском": None,
-        "Название на румынском": None,
         "Артикул": articul if articul else None,
         "Категория": category if category else None,
         "price": price.replace(".", ",") if price else None
@@ -160,8 +156,6 @@ async def data_extraction_habsev(response):
 
     data = {
         "Название": name.get_text(strip=True) if name else None,
-        "Название на русском": None,
-        "Название на румынском": None,
         "Артикул": articul.get_text(strip=True).split(":")[-1].strip() if articul else None,
         "Категория": category_items[-2].get_text(strip=True) if len(category_items) > 1 else None,
         "price":  price_text.replace(".", ",") if price_text else None,
@@ -189,8 +183,6 @@ async def data_extraction_luminaled(response):
 
     data = {
         "Название": name.get_text(strip=True) if name else None,
-        "Название на русском": None,
-        "Название на румынском": None,
         "Артикул": articul.get_text(strip=True).split(":")[-1].strip() if articul else None,
         "Категория": category_items[-2].get_text(strip=True) if len(category_items) > 1 else None,
         "price": price_text.replace(".", ",") if price_text else None,
@@ -242,8 +234,6 @@ async def data_extraction_electromotor(response):
 
     data = {
         "Название": name.get_text(strip=True) if name else None,
-        "Название на русском": None,
-        "Название на румынском": None,
         "Артикул": articul.get_text(strip=True).split(":")[-1].strip() if articul else None,
         "Категория": category_items[-1].get_text(strip=True) if len(category_items) > 1 else None,
         "price": price if price else None,

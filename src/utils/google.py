@@ -102,142 +102,6 @@ class GoogleSheetsWriter:
             self.worksheet.spreadsheet.batch_update({"requests": requests})
 
 
-    # Universal  DataFrame is highly fragmented. 
-    # async def write_to_google_sheets(self, data: Dict[str, Any], currency: str):
-    #     current_date = datetime.now().strftime('%Y-%m-%d')
-    #     price_column_name = f"Цена \n {current_date}"
-
-    #     existing_df = get_as_dataframe(self.worksheet)
-    #     if existing_df.empty:
-    #         existing_df = pd.DataFrame()
-
-    #     if price_column_name not in existing_df.columns:
-    #         existing_df[price_column_name] = None
-
-    #     for url, details in data.items():
-    #         if details is None:
-    #             continue
-
-    #         current_price = str(details.pop("price", "")) if "price" in details else ""
-    #         current_price_num = re.search(r'\d+(\.\d+)?', current_price)
-    #         current_price_num = float(current_price_num.group()) if current_price_num else None
-
-    #         if not existing_df.empty and url in existing_df["URL"].values:
-    #             row_index = existing_df.index[existing_df["URL"] == url].tolist()[0]
-    #             existing_df.at[row_index, price_column_name] = current_price
-    #         else:
-    #             new_row = details.copy()
-    #             new_row["URL"] = url
-    #             new_row[price_column_name] = current_price
-    #             existing_df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
-
-    #     # Обновляем список фиксированных колонок
-    #     fixed_columns = ["URL", "Название", "Название на русском", "Артикул", "Категория"]
-
-    #     # Сортировка колонок с ценами по дате
-    #     price_columns = [col for col in existing_df.columns if re.search(r"\d{4}-\d{2}-\d{2}", col)]
-    #     price_columns.sort(key=lambda x: datetime.strptime(re.search(r"\d{4}-\d{2}-\d{2}", x).group(), '%Y-%m-%d'))
-
-    #     # Удаление столбца "Цена", если он существует
-    #     if "Цена" in existing_df.columns:
-    #         existing_df.drop(columns=["Цена"], inplace=True)
-
-    #     # Проверяем, если "Название на русском" отсутствует в столбцах, добавляем его
-    #     # if "Название на русском" not in existing_df.columns:
-    #     #     existing_df["Название на русском"] = None  # Добавляем новый столбец с пустыми значениями
-
-    #     # Остальные колонки, не входящие в fixed_columns или price_columns
-    #     other_columns = [col for col in existing_df.columns if col not in fixed_columns + price_columns]
-
-    #     # Объединяем все колонки в нужном порядке
-    #     ordered_columns = fixed_columns + price_columns + other_columns
-    #     existing_df = existing_df[ordered_columns]
-
-    #     # Теперь добавляем формулы в столбец "Название на русском" для всех строк
-    #     name_index = fixed_columns.index("Название на русском")  # Индекс столбца "Название на русском"
-    #     name_column_index = fixed_columns.index("Название")  # Индекс столбца "Название" (для ссылки в формуле)
-
-    #     for i in range(len(existing_df)):
-    #         # Если ячейка в "Название на русском" не пуста и не содержит формулу, добавляем формулу
-    #         if pd.isna(existing_df.iloc[i]["Название на русском"]):  # Ячейка пуста
-    #             row_number = i + 2  # Поскольку первая строка - это заголовок
-    #             col_letter_name = gspread.utils.rowcol_to_a1(1, name_column_index + 1).replace("1", "")  # Получаем букву колонки "Название"
-    #             formula = f'=GOOGLETRANSLATE({col_letter_name}{row_number}; "auto"; "ru")'  # Формула для перевода
-    #             existing_df.iat[i, name_index] = formula  # Вставляем формулу в соответствующую ячейку "Название на русском"
-    #         elif existing_df.iloc[i]["Название на русском"] and "GOOGLETRANSLATE" not in str(existing_df.iloc[i]["Название на русском"]):
-    #             # Если формулы нет, добавляем её
-    #             row_number = i + 2
-    #             col_letter_name = gspread.utils.rowcol_to_a1(1, name_column_index + 1).replace("1", "")
-    #             formula = f'=GOOGLETRANSLATE({col_letter_name}{row_number}; "auto"; "ru")'
-    #             existing_df.iat[i, name_index] = formula
-        
-
-    #     previous_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    #     previous_price_column_name = f"Цена \n {previous_date}"
-
-    #     highlight_cells = []
-
-    #     if previous_price_column_name in existing_df.columns:
-    #         for row_index, row in existing_df.iterrows():
-    #             current_price = row[price_column_name]
-    #             previous_price = row[previous_price_column_name]
-
-    #             # Используем регулярку для извлечения числовых значений цен
-    #             # current_price_num = re.search(r'\d+(\,\d+)?|\d+(\.\d+)?', str(current_price))
-    #             # previous_price_num = re.search(r'\d+(\,\d+)?|\d+(\.\d+)?', str(previous_price))
-    #             current_price_num = re.search(r'\d+(?:[.,]\d+)?', str(current_price))
-    #             previous_price_num = re.search(r'\d+(?:[.,]\d+)?', str(previous_price))
-
-    #             if not current_price_num or not previous_price_num:
-    #                 continue
-
-    #             # Извлекаем числовые значения, удаляя запятую, если она есть
-    #             current_price_num = current_price_num.group().replace(',', '.')
-    #             previous_price_num = previous_price_num.group().replace(',', '.')
-
-    #             try:
-    #                 current_price_num = float(current_price_num)
-    #                 previous_price_num = float(previous_price_num)
-    #             except (ValueError, TypeError):
-    #                 continue
-
-    #             price_diff = abs(current_price_num - previous_price_num)
-    #             decimal_places = 2 if '.' in str(current_price_num) else 0
-                
-
-    #             # Обработка цен
-    #             if current_price_num > previous_price_num:
-    #                 updated_text = f"{current_price_num:.{decimal_places}f} (> на {price_diff:.2f})"
-    #                 highlight_cells.append((row_index + 2, existing_df.columns.get_loc(price_column_name) + 1, "green"))
-    #             elif current_price_num < previous_price_num:
-    #                 updated_text = f"{current_price_num:.{decimal_places}f} (< на {price_diff:.2f})"
-    #                 highlight_cells.append((row_index + 2, existing_df.columns.get_loc(price_column_name) + 1, "red"))
-    #             else:
-    #                 updated_text = f"{current_price_num:.{decimal_places}f}"
-
-    #             # Заменяем точку на запятую для вывода в правильном формате
-    #             updated_text = updated_text.replace('.', ',')
-
-    #             # Обновление DataFrame
-    #             existing_df.at[row_index, price_column_name] = updated_text
-
-    #     self.worksheet.clear()
-        
-    #     set_with_dataframe(self.worksheet, existing_df)
-
-    #     now = datetime.now()
-    #     updated_at = now.strftime("Обновлено: %d.%m.%Y в %H:%M")
-    #     self.worksheet.insert_note("A1", updated_at)
-
-
-    #     self.batch_highlight_cells(highlight_cells)
-    #     self.format_worksheet()
-
-    #     self.logger.info(f"Данные успешно загружены в Google Таблицу!")
-    #     self.logger.info(f"Ссылка на таблицу: https://docs.google.com/spreadsheets/d/{self.sheet.id}")
-
-
-
     async def write_to_google_sheets(self, data: Dict[str, Any], currency: str):
         current_date = datetime.now().strftime('%Y-%m-%d')
         price_column_name = f"Цена \n {current_date}"
@@ -246,7 +110,7 @@ class GoogleSheetsWriter:
         if existing_df.empty:
             existing_df = pd.DataFrame()
 
-        fixed_columns = ["URL", "Название", "Название на русском", "Название на румынском", "Артикул", "Категория"]
+        fixed_columns = ["URL", "Название", "Артикул", "Категория"]
 
         if price_column_name not in existing_df.columns:
             existing_df[price_column_name] = None
@@ -261,8 +125,7 @@ class GoogleSheetsWriter:
 
             if not existing_df.empty and url in existing_df["URL"].values:
                 row_index = existing_df.index[existing_df["URL"] == url].tolist()[0]
-                # existing_df.at[row_index, price_column_name] = current_price
-                existing_df[price_column_name] = existing_df[price_column_name].astype(str) # change type price
+                existing_df[price_column_name] = existing_df[price_column_name].astype(str)
                 existing_df.at[row_index, price_column_name] = current_price
             else:
                 new_row = details.copy()
@@ -279,33 +142,6 @@ class GoogleSheetsWriter:
         other_columns = [col for col in existing_df.columns if col not in fixed_columns + price_columns]
         ordered_columns = fixed_columns + price_columns + other_columns
         existing_df = existing_df.reindex(columns=ordered_columns)
-
-        # Добавление переводов
-        name_index_ru = existing_df.columns.get_loc("Название на русском")
-        name_index_ro = existing_df.columns.get_loc("Название на румынском")
-        name_column_index = existing_df.columns.get_loc("Название")
-
-        # Приводим к строковому типу, чтобы избежать конфликтов с формулами
-        existing_df["Название на русском"] = existing_df["Название на русском"].astype(str)
-        existing_df["Название на румынском"] = existing_df["Название на румынском"].astype(str)
-
-        for i in range(len(existing_df)):
-            row_number = i + 2
-            col_letter_name = gspread.utils.rowcol_to_a1(1, name_column_index + 1).replace("1", "")
-
-            if pd.isna(existing_df.iat[i, name_index_ru]):
-                formula_ru = f'=GOOGLETRANSLATE({col_letter_name}{row_number}; "auto"; "ru")'
-                existing_df.iat[i, name_index_ru] = formula_ru
-            elif "GOOGLETRANSLATE" not in str(existing_df.iat[i, name_index_ru]):
-                formula_ru = f'=GOOGLETRANSLATE({col_letter_name}{row_number}; "auto"; "ru")'
-                existing_df.iat[i, name_index_ru] = formula_ru
-
-            if pd.isna(existing_df.iat[i, name_index_ro]):
-                formula_ro = f'=GOOGLETRANSLATE({col_letter_name}{row_number}; "auto"; "ro")'
-                existing_df.iat[i, name_index_ro] = formula_ro
-            elif "GOOGLETRANSLATE" not in str(existing_df.iat[i, name_index_ro]):
-                formula_ro = f'=GOOGLETRANSLATE({col_letter_name}{row_number}; "auto"; "ro")'
-                existing_df.iat[i, name_index_ro] = formula_ro
 
         # Сравнение с последним днём
         highlight_cells = []
@@ -349,7 +185,6 @@ class GoogleSheetsWriter:
                 updated_text = updated_text.replace('.', ',')
                 existing_df.at[row_index, price_column_name] = updated_text
         else:
-            # Если нет хотя бы одной предыдущей даты — считаем что изменения есть, чтобы создать таблицу
             price_changed = True
 
         now = datetime.now()
@@ -367,7 +202,6 @@ class GoogleSheetsWriter:
             self.logger.info("Цены не изменились — новый столбец не будет добавлен.")
             return
 
-        # Записываем обновлённый датафрейм
         self.worksheet.clear()
         set_with_dataframe(self.worksheet, existing_df)
 
@@ -379,3 +213,4 @@ class GoogleSheetsWriter:
 
         self.logger.info("Данные успешно загружены в Google Таблицу!")
         self.logger.info(f"Ссылка на таблицу: https://docs.google.com/spreadsheets/d/{self.sheet.id}")
+
