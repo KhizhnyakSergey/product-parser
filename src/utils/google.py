@@ -261,6 +261,8 @@ class GoogleSheetsWriter:
 
             if not existing_df.empty and url in existing_df["URL"].values:
                 row_index = existing_df.index[existing_df["URL"] == url].tolist()[0]
+                # existing_df.at[row_index, price_column_name] = current_price
+                existing_df[price_column_name] = existing_df[price_column_name].astype(str) # change type price
                 existing_df.at[row_index, price_column_name] = current_price
             else:
                 new_row = details.copy()
