@@ -36,15 +36,15 @@ async def start_application(app_class):
 
 async def main() -> None:
     app_classes = [
-        # ApplicationSupraten,
-        # ApplicationIek,
-        # ApplicationHabsev,
-        # ApplicationLuminaled,
-        # ApplicationElectromotor,
-        # ApplicationVolta,
-        # ApplicationPanlight,
-        # ApplicationCablu,
-        # ApplicationOkm,
+        ApplicationSupraten,
+        ApplicationIek,
+        ApplicationHabsev,
+        ApplicationLuminaled,
+        ApplicationElectromotor,
+        ApplicationVolta,
+        ApplicationPanlight,
+        ApplicationCablu,
+        ApplicationOkm,
         ApplicationPolev
     ]
 
@@ -57,8 +57,8 @@ async def main() -> None:
 if __name__ == "__main__":
     try:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        asyncio.run(main())
-        # asyncio.run(scheduler())
+        # asyncio.run(main())
+        asyncio.run(scheduler())
     except KeyboardInterrupt:
         print("Завершення роботи користувачем.")
 

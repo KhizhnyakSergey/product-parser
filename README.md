@@ -1,10 +1,8 @@
 # **1️. Установите библиотеки**
 
-
 pip install -r requirements.txt
 
 # **2️. Настройте доступ к Google Sheets**
-
 
 Перейдите в Google Cloud Console.
 Создайте новый проект.
@@ -17,7 +15,7 @@ pip install -r requirements.txt
 
 #### Название таблицы
 
-TABLE_NAME=Supraten (пример)
+TABLE_NAME=PARSE_DATA (пример)
 
 #### Время через которое будет запускаться скрипт повторно в секундах (86400 - 24 часа)
 
@@ -40,3 +38,8 @@ JSON_NAME=wired-standard-450813-f5-dc1cc2de041e.json (пример)
 3. ***https://habsev.md/ro***
 4. ***https://luminaled.md/index.php?route=common/home***
 5. ***https://electromotor.md***
+6. ***https://volta.md/***
+7. ***https://www.panlight.md/***
+8. ***https://cablu.md/***
+9. ***https://okm.md/ru***
+10. ***https://polev.md/ru/***
