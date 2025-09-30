@@ -171,7 +171,8 @@ class ApplicationHabsev:
             results = await asyncio.gather(*tasks)
             
             for result in results:
-                self.data.extend(result)
+                if result:
+                    self.data.extend(result)
             tasks.clear()
 
             tasks_html_data = []
@@ -197,6 +198,6 @@ class ApplicationHabsev:
             rows=rows + 100,
             cols=50
         )
-        await write.write_to_google_sheets(self.final_data, currency='лей')
+        await write.write_to_google_sheets(self.final_data)
         self.logger.info(f'Парсинг завершено {name_list} ...\n')
 

@@ -147,5 +147,5 @@ class ApplicationOkm:
             rows=rows + 100,
             cols=100
         )
-        await write.write_to_google_sheets(self.final_data, currency='лей')
+        await write.write_to_google_sheets(self.final_data)
         self.logger.info(f'Парсинг завершено {name_list} ...\n')

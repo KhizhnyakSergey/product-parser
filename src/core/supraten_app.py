@@ -29,10 +29,10 @@ class ApplicationSupraten:
 
 
     async def choise_category(self, category_num: int) -> Tuple[str]:
-
         retries = 3  
+        categories = None
+        
         async with SupratenAPI() as ses:
-            categories = None
             for attempt in range(retries):
                 try:
                     categories = await ses.get_categories()  
@@ -45,16 +45,20 @@ class ApplicationSupraten:
                         self.logger.error(f"Не удалось получить категории.")
                 except Exception as e:
                     self.logger.exception(f"Непредвиденная ошибка: {type(e).__name__} -> {e}")
-
+        
+        # Проверяем, что categories не None и не пустой
+        if not categories:
+            self.logger.error("Категории не получены после всех попыток")
+            return 'None', 'https://www.google.com/'
+        
         categories_list = list(categories.items())
+        
         if not 1 <= category_num <= len(categories_list):
             return 'None', 'https://www.google.com/'
 
         selected_name, selected_url = categories_list[category_num - 1]
         self.logger.info(f"➡️ Выбрано: {selected_name} ({selected_url})")
         return selected_name, selected_url
-
-
 
         
 
@@ -176,9 +180,9 @@ class ApplicationSupraten:
         ''')
         self.logger.info(f'Начало парсинга {formatted_date} {to_parse}')
         for category in to_parse:
+            
             tasks = []
             name_category, url = await self.choise_category(category)
-            
             categories = await self.get_all_urls_in_category_with_retry(url)
             if not categories:
                 self.logger.info(f'Не смог собрать ссылки с категории {name_category}')
@@ -191,7 +195,8 @@ class ApplicationSupraten:
             results = await asyncio.gather(*tasks)
             
             for result in results:
-                self.data.extend(result)  
+                if result:
+                    self.data.extend(result)  
             tasks.clear()
 
             tasks_html_data = []
@@ -217,5 +222,5 @@ class ApplicationSupraten:
             rows=rows + 100,
             cols=200
         )
-        await write.write_to_google_sheets(self.final_data, currency='лей')
+        await write.write_to_google_sheets(self.final_data)
         self.logger.info(f'Парсинг завершено {name_list} ...\n')

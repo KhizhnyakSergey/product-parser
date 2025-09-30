@@ -79,13 +79,33 @@ class ApplicationElectromotor:
         return None
 
 
-    async def _task_all_products(self, url: str) -> None:
-        async with self.semaphore:  # Use semaphore here
-            retries = 3  # Количество попыток
+    # async def _task_all_products(self, url: str) -> None:
+    #     async with self.semaphore:  # Use semaphore here
+    #         retries = 3  # Количество попыток
+    #         for attempt in range(retries):
+    #             async with ElectromotorAPI() as api:
+    #                 try:
+    #                     result = await api.get_all_products(url) 
+    #                     self.logger.info(f'Спарсил страницы -> {url} ✅')
+    #                     return result if result is not None else []
+    #                 except (ClientConnectorError, NetworkError, TimeoutError, APIError) as e:
+    #                     if attempt < retries - 1:
+    #                         retry_delay = random.uniform(2.0, 4.0)
+    #                         self.logger.warning(
+    #                             f'({attempt + 1}/{retries}) Повтор через {retry_delay:.1f} сек. Ошибка: {type(e).__name__}'
+    #                         )
+    #                 except KeyboardInterrupt:
+    #                     self.logger.error(f'Завершение таски по запросу пользователя.')
+    #                 except Exception as e:
+    #                     self.logger.exception(f'{type(e).__name__} -> {e}')
+
+    async def _task_all_products(self, url: str) -> list:
+        async with self.semaphore:
+            retries = 3
             for attempt in range(retries):
                 async with ElectromotorAPI() as api:
                     try:
-                        result = await api.get_all_products(url) 
+                        result = await api.get_all_products(url)
                         self.logger.info(f'Спарсил страницы -> {url} ✅')
                         return result if result is not None else []
                     except (ClientConnectorError, NetworkError, TimeoutError, APIError) as e:
@@ -94,10 +114,16 @@ class ApplicationElectromotor:
                             self.logger.warning(
                                 f'({attempt + 1}/{retries}) Повтор через {retry_delay:.1f} сек. Ошибка: {type(e).__name__}'
                             )
+                            await asyncio.sleep(retry_delay)
                     except KeyboardInterrupt:
                         self.logger.error(f'Завершение таски по запросу пользователя.')
+                        return []
                     except Exception as e:
                         self.logger.exception(f'{type(e).__name__} -> {e}')
+                        return []
+        # если все попытки провалились
+        self.logger.error(f'Не удалось спарсить страницы -> {url} ❌')
+        return []
     
     
     async def _task_html_to_data(self, url: str, count: int) -> tuple[str, str] | None:
@@ -167,7 +193,8 @@ class ApplicationElectromotor:
             results = await asyncio.gather(*tasks)
             
             for result in results:
-                self.data.extend(result)
+                if result:  
+                    self.data.extend(result)
             tasks.clear()
 
             tasks_html_data = []
@@ -193,5 +220,5 @@ class ApplicationElectromotor:
             rows=rows + 100,
             cols=110
         )
-        await write.write_to_google_sheets(self.final_data, currency='MDL')
+        await write.write_to_google_sheets(self.final_data)
         self.logger.info(f'Парсинг завершено {name_list} ...\n')
