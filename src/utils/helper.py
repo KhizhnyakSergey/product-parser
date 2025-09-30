@@ -107,8 +107,9 @@ async def data_extraction_iek(response):
     if product_meta:
         articul = product_meta.find("span", class_="sku").text.strip()
 
-
-    category = soup.find("a", class_="breadcrumb-link breadcrumb-link-last").get_text(strip=True)
+    
+    # category = soup.find("a", class_="breadcrumb-link breadcrumb-link-last").get_text(strip=True)
+    category = soup.find("a", class_="wd-last-link").get_text(strip=True)
     price = soup.find("p", class_="price").text.split("MDL")[0].strip()
     if price:
         price = price.replace(",", "")
@@ -158,7 +159,7 @@ async def data_extraction_habsev(response):
         "Название": name.get_text(strip=True) if name else None,
         "Артикул": articul.get_text(strip=True).split(":")[-1].strip() if articul else None,
         "Категория": category_items[-2].get_text(strip=True) if len(category_items) > 1 else None,
-        "price":  price_text.replace(".", ",") if price_text else None,
+        "price":  price_text.replace(".", ",") if price_text else 0,
         "Описание": description.get_text(strip=True) if description else None,
     }
     data = await normalize_name(data)

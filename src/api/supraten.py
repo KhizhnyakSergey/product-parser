@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 
 from bs4 import BeautifulSoup
 from aiohttp import ClientConnectorError
+import cloudscraper
 
 from src.session.aiohttp import AiohttpSession
 from src.utils.user_agent import get_user_agent
@@ -29,7 +30,12 @@ class SupratenAPI:
         self.logger = logger or Logger()
         self._headers = {
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'accept-language': 'ru-RU,ru;q=0.8',
+            'accept-language': 'ru-RU,ru;q=0.6',
+        }
+        self._cookies = {
+            'language': 'ru-ru',
+            'res_pushed': '1',
+            'languagAlex': 'ru-ru',
         }
 
     async def __aenter__(self) -> "SupratenAPI":
@@ -40,15 +46,20 @@ class SupratenAPI:
 
     async def get_categories(self) -> Dict[str, Any]:
 
-        self._headers['user-agent'] = get_user_agent()
-        response = await self._session(
-            'GET', 
-            self.API, 
-            headers=self._headers, 
-        )
 
+        scraper = cloudscraper.create_scraper()
+        
+        # self._headers['user-agent'] = get_user_agent()
+        # response = await self._session(
+        #     'GET', 
+        #     self.API, 
+        #     headers=self._headers, 
+        #     cookies=self._cookies, 
+        # )
+        response = scraper.get(self.API)
+        
         categories_data = {}
-        soup = BeautifulSoup(response, "lxml")
+        soup = BeautifulSoup(response.text, "lxml")
         ul_element = soup.find('ul', attrs={'class': 'sp-header-menu-category__list'})
         categories = ul_element.find_all('a', attrs={'class': 'sp-header-menu-category__link'})
         
@@ -62,27 +73,30 @@ class SupratenAPI:
     async def get_all_urls_in_category(self, url: str):
         
         self._headers['user-agent'] = get_user_agent()
+        scraper = cloudscraper.create_scraper()
 
         try:
-            response = await self._session(
-                'GET', 
-                url, 
-                headers=self._headers, 
-            )
+            response = scraper.get(url)
+            # response = await self._session(
+            #     'GET', 
+            #     url, 
+            #     headers=self._headers, 
+            # )
         except ClientConnectorError as ex:
             await asyncio.sleep(5)
-            response = await self._session(
-                'GET', 
-                url, 
-                headers=self._headers, 
-            )
+            response = scraper.get(url)
+            # response = await self._session(
+            #     'GET', 
+            #     url, 
+            #     headers=self._headers, 
+            # )
         
 
         if not response:
             return None
         
         categories_data = {}
-        soup = BeautifulSoup(response, "lxml")
+        soup = BeautifulSoup(response.text, "lxml")
         div_cat_list = soup.find('div', attrs={'class': 'row sp-category-list'})
 
         if div_cat_list is None:
@@ -104,6 +118,8 @@ class SupratenAPI:
             # Рекурсивно вызываем для подкатегории
             sub_data = await self.get_all_urls_in_category(href)
             categories_data.update(sub_data)  # Объединяем данные
+            # if sub_data:
+            #     categories_data.update(sub_data)  # Объединяем данные
 
         return categories_data
     
@@ -113,14 +129,15 @@ class SupratenAPI:
 
         # Функция для получения HTML-контента страницы
         async def fetch_page(page: int = 1):
+            scraper = cloudscraper.create_scraper()
+            response = scraper.get(f'{url}?limit=90&page={page}&')
+            # response = await self._session(
+            #     'GET', 
+            #     f'{url}?limit=90&page={page}&', 
+            #     headers=self._headers, 
+            # )
             
-            response = await self._session(
-                'GET', 
-                f'{url}?limit=90&page={page}&', 
-                headers=self._headers, 
-            )
-            
-            return response
+            return response.text
 
         # Функция для извлечения данных о продуктах со страницы
         def parse_products(soup):
@@ -170,21 +187,24 @@ class SupratenAPI:
     async def get_html_product(self, url: str):
 
         self._headers['user-agent'] = get_user_agent()
-
-        response = await self._session(
-            'GET', 
-            f'{url}', 
-            headers=self._headers, 
-        )
+        scraper = cloudscraper.create_scraper()
+        response = scraper.get(url)
+        # response = await self._session(
+        #     'GET', 
+        #     f'{url}', 
+        #     headers=self._headers, 
+        # )
 
         if not response:
-            response = await self._session(
-            'GET', 
-            f'{url}', 
-            headers=self._headers, 
-        )
+            response = scraper.get(url)
+            # response = await self._session(
+            # 'GET', 
+            # f'{url}', 
+            # headers=self._headers, 
 
-        return response
+        # )
+
+        return response.text
 
 
     

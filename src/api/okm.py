@@ -122,7 +122,7 @@ class OkmAPI:
         result = {
             "URL": f'https://okm.md/ru/product/{slug}',
             "Название": data.get('title'),
-            "price": str(price) if price else None,
+            "price": str(price) if price else 0,
             "Категория": category,
             "Субкатегория": subcategory,
             "Артикул": data.get('code'),  

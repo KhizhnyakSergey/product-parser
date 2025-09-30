@@ -171,7 +171,8 @@ class ApplicationLuminaled:
             results = await asyncio.gather(*tasks)
             
             for result in results:
-                self.data.extend(result)
+                if result:
+                    self.data.extend(result)
             tasks.clear()
 
             tasks_html_data = []
@@ -196,5 +197,5 @@ class ApplicationLuminaled:
             rows=rows + 100,
             cols=110
         )
-        await write.write_to_google_sheets(self.final_data, currency='MDL')
+        await write.write_to_google_sheets(self.final_data)
         self.logger.info(f'Парсинг завершено {name_list} ...\n')

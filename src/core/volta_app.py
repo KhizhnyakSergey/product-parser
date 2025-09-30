@@ -18,7 +18,7 @@ class ApplicationVolta:
     
     def __init__(
             self, 
-            max_concurrent_sessions: int = 5,
+            max_concurrent_sessions: int = 3,
             settings: Optional[Settings] = None, 
             logger: Optional[Logger] = None
     ) -> None:
@@ -62,7 +62,7 @@ class ApplicationVolta:
             for attempt in range(retries):
                 async with VoltaAPI() as api:
                     try:
-                        await asyncio.sleep(random.uniform(0.1, 2.0))
+                        await asyncio.sleep(random.uniform(0.3, 2.5))
                         response = await api.get_html_product(url)
                         if response:
                             data = await data_extraction(response) 
@@ -169,7 +169,8 @@ class ApplicationVolta:
             results = await asyncio.gather(*tasks)
             
             for result in results:
-                self.data.extend(result)
+                if result:
+                    self.data.extend(result)
             tasks.clear()
 
             tasks_html_data = []
@@ -195,5 +196,5 @@ class ApplicationVolta:
             rows=rows + 100,
             cols=120
         )
-        await write.write_to_google_sheets(self.final_data, currency='MDL')
+        await write.write_to_google_sheets(self.final_data)
         self.logger.info(f'Парсинг завершено {name_list} ...\n')

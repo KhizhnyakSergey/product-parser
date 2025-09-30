@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from oauth2client.service_account import ServiceAccountCredentials
 from gspread_dataframe import set_with_dataframe, get_as_dataframe
+import numpy as np
 
 from src.utils.logger import Logger
 
@@ -22,6 +23,7 @@ class GoogleSheetsWriter:
         self.load_credentials(creds_file)
         self.sheet = self.create_or_open_sheet(sheet_name)
         self.worksheet = self.create_or_open_worksheet(worksheet_name)
+        self.current_price_column = "Актуальная цена"
         
 
     def load_credentials(self, creds_file: str):
@@ -43,7 +45,6 @@ class GoogleSheetsWriter:
         try:
             return self.sheet.worksheet(worksheet_name)
         except gspread.exceptions.WorksheetNotFound:
-            # worksheet = self.sheet.add_worksheet(title=worksheet_name, rows="6000", cols="130")
             worksheet = self.sheet.add_worksheet(title=worksheet_name, rows=f"{self.rows}", cols=f"{self.cols}")
             self.logger.info(f"Создан новый лист: {worksheet_name}")
             return worksheet
@@ -75,13 +76,16 @@ class GoogleSheetsWriter:
                         self.logger.warning(f"Google API временно недоступен. Попытка {attempt + 1} из {max_retries}. Ожидание {wait_time:.2f} сек...")
                         time.sleep(wait_time)
                     else:
-                        # raise  # Если ошибка не 503, выбрасываем её снова
                         pass
 
 
     def batch_highlight_cells(self, highlight_cells):
         requests = []
-        colors = {"green": {"red": 0.7, "green": 1.0, "blue": 0.7}, "red": {"red": 1.0, "green": 0.7, "blue": 0.7}}
+        colors = {
+            "green": {"red": 0.7, "green": 1.0, "blue": 0.7},
+            "red": {"red": 1.0, "green": 0.7, "blue": 0.7},
+            "white": {"red": 1.0, "green": 1.0, "blue": 1.0}  # Добавлен белый цвет
+        }
         
         for row, col, color in highlight_cells:
             requests.append({
@@ -102,90 +106,84 @@ class GoogleSheetsWriter:
             self.worksheet.spreadsheet.batch_update({"requests": requests})
 
 
-    async def write_to_google_sheets(self, data: Dict[str, Any], currency: str):
-        current_date = datetime.now().strftime('%Y-%m-%d')
-        price_column_name = f"Цена \n {current_date}"
-
+    async def write_to_google_sheets(self, data: Dict[str, Any]):
         existing_df = get_as_dataframe(self.worksheet)
         if existing_df.empty:
             existing_df = pd.DataFrame()
 
         fixed_columns = ["URL", "Название", "Артикул", "Категория"]
 
-        if price_column_name not in existing_df.columns:
-            existing_df[price_column_name] = None
+        # Убедимся, что колонка с ценами имеет строковый тип
+        if self.current_price_column not in existing_df.columns:
+            existing_df[self.current_price_column] = pd.Series(dtype='str')
+        else:
+            existing_df[self.current_price_column] = existing_df[self.current_price_column].astype(str)
+
+        highlight_cells = []
+        price_changed = False
+        cells_to_clear_highlight = []
 
         for url, details in data.items():
             if details is None:
                 continue
 
             current_price = str(details.pop("price", "")) if "price" in details else ""
-            current_price_num = re.search(r'\d+(\.\d+)?', current_price)
-            current_price_num = float(current_price_num.group()) if current_price_num else None
+            current_price_num = re.search(r'\d+([.,]\d+)?', current_price)
+            current_price_num = float(current_price_num.group().replace(',', '.')) if current_price_num else None
 
             if not existing_df.empty and url in existing_df["URL"].values:
                 row_index = existing_df.index[existing_df["URL"] == url].tolist()[0]
-                existing_df[price_column_name] = existing_df[price_column_name].astype(str)
-                existing_df.at[row_index, price_column_name] = current_price
+                previous_price = existing_df.at[row_index, self.current_price_column]
+                
+                # Извлекаем только числовое значение из предыдущей цены (удаляем "> на X.XX" или "< на X.XX")
+                clean_previous_price = re.sub(r'\s*[<>] на \d+[,.]\d+\)?', '', previous_price)
+                previous_price_num = re.search(r'\d+([.,]\d+)?', clean_previous_price)
+                if previous_price_num:
+                    previous_price_num = float(previous_price_num.group().replace(',', '.'))
+                else:
+                    previous_price_num = None
+
+                if current_price_num is not None:
+                    decimal_places = 2 if '.' in f"{current_price_num:.2f}" else 0
+                    formatted_price = f"{current_price_num:.{decimal_places}f}".replace('.', ',')
+                    
+                    if previous_price_num is not None:
+                        if not np.isclose(current_price_num, previous_price_num):
+                            price_diff = abs(current_price_num - previous_price_num)
+                            
+                            if current_price_num > previous_price_num:
+                                formatted_price = f"{current_price_num:.{decimal_places}f} (> на {price_diff:.2f})".replace('.', ',')
+                                highlight_cells.append((row_index + 2, existing_df.columns.get_loc(self.current_price_column) + 1, "green"))
+                            else:
+                                formatted_price = f"{current_price_num:.{decimal_places}f} (< на {price_diff:.2f})".replace('.', ',')
+                                highlight_cells.append((row_index + 2, existing_df.columns.get_loc(self.current_price_column) + 1, "red"))
+                            
+                            price_changed = True
+                        else:
+                            # Цена не изменилась - убираем разницу и добавляем в список для очистки выделения
+                            formatted_price = f"{current_price_num:.{decimal_places}f}".replace('.', ',')
+                            cells_to_clear_highlight.append((row_index + 2, existing_df.columns.get_loc(self.current_price_column) + 1))
+                    
+                    # Обновляем значение в DataFrame (уже как строку)
+                    existing_df.at[row_index, self.current_price_column] = formatted_price
+                    price_changed = True
             else:
+                # Новая запись
                 new_row = details.copy()
                 new_row["URL"] = url
-                new_row[price_column_name] = current_price
-                existing_df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
-
-        price_columns = [col for col in existing_df.columns if re.search(r"\d{4}-\d{2}-\d{2}", col)]
-        price_columns.sort(key=lambda x: datetime.strptime(re.search(r"\d{4}-\d{2}-\d{2}", x).group(), '%Y-%m-%d'))
-
-        if "Цена" in existing_df.columns:
-            existing_df.drop(columns=["Цена"], inplace=True)
-
-        other_columns = [col for col in existing_df.columns if col not in fixed_columns + price_columns]
-        ordered_columns = fixed_columns + price_columns + other_columns
-        existing_df = existing_df.reindex(columns=ordered_columns)
-
-        # Сравнение с последним днём
-        highlight_cells = []
-        price_changed = False
-
-        if len(price_columns) >= 2:
-            last_column_name = price_columns[-2]
-            for row_index, row in existing_df.iterrows():
-                current_price = row[price_column_name]
-                previous_price = row[last_column_name]
-
-                current_price_num = re.search(r'\d+(?:[.,]\d+)?', str(current_price))
-                previous_price_num = re.search(r'\d+(?:[.,]\d+)?', str(previous_price))
-
-                if not current_price_num or not previous_price_num:
-                    continue
-
-                current_price_num = current_price_num.group().replace(',', '.')
-                previous_price_num = previous_price_num.group().replace(',', '.')
-
-                try:
-                    current_price_num = float(current_price_num)
-                    previous_price_num = float(previous_price_num)
-                except (ValueError, TypeError):
-                    continue
-
-                price_diff = abs(current_price_num - previous_price_num)
-                decimal_places = 2 if '.' in str(current_price_num) else 0
-
-                if current_price_num > previous_price_num:
-                    updated_text = f"{current_price_num:.{decimal_places}f} (> на {price_diff:.2f})"
-                    highlight_cells.append((row_index + 2, existing_df.columns.get_loc(price_column_name) + 1, "green"))
-                    price_changed = True
-                elif current_price_num < previous_price_num:
-                    updated_text = f"{current_price_num:.{decimal_places}f} (< на {price_diff:.2f})"
-                    highlight_cells.append((row_index + 2, existing_df.columns.get_loc(price_column_name) + 1, "red"))
-                    price_changed = True
+                if current_price_num is not None:
+                    decimal_places = 2 if '.' in f"{current_price_num:.2f}" else 0
+                    new_row[self.current_price_column] = f"{current_price_num:.{decimal_places}f}".replace('.', ',')
                 else:
-                    updated_text = f"{current_price_num:.{decimal_places}f}"
+                    new_row[self.current_price_column] = current_price
+                
+                existing_df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
+                price_changed = True
 
-                updated_text = updated_text.replace('.', ',')
-                existing_df.at[row_index, price_column_name] = updated_text
-        else:
-            price_changed = True
+        # Упорядочиваем колонки
+        other_columns = [col for col in existing_df.columns if col not in fixed_columns + [self.current_price_column]]
+        ordered_columns = fixed_columns + [self.current_price_column] + other_columns
+        existing_df = existing_df.reindex(columns=ordered_columns)
 
         now = datetime.now()
 
@@ -196,21 +194,24 @@ class GoogleSheetsWriter:
             self.logger.info(updated_at)
             return
 
-        if not price_changed:
-            updated_at = now.strftime("Цены не поменялись: %d.%m.%Y в %H:%M")
-            self.worksheet.insert_note("A1", updated_at)
-            self.logger.info("Цены не изменились — новый столбец не будет добавлен.")
-            return
-
         self.worksheet.clear()
         set_with_dataframe(self.worksheet, existing_df)
 
-        updated_at = now.strftime("Обновлено: %d.%m.%Y в %H:%M")
-        self.worksheet.insert_note("A1", updated_at)
-
+        # Применяем выделение для изменившихся цен
         self.batch_highlight_cells(highlight_cells)
+        
+        # Очищаем выделение для цен, которые не изменились
+        if cells_to_clear_highlight:
+            self.batch_highlight_cells([(row, col, "white") for row, col in cells_to_clear_highlight])
+
         self.format_worksheet()
 
-        self.logger.info("Данные успешно загружены в Google Таблицу!")
+        if price_changed:
+            updated_at = now.strftime("Обновлено: %d.%m.%Y в %H:%M")
+            self.logger.info("Данные успешно загружены в Google Таблицу!")
+        else:
+            updated_at = now.strftime("Цены не поменялись: %d.%m.%Y в %H:%M")
+            self.logger.info("Цены не изменились.")
+        
+        self.worksheet.insert_note("A1", updated_at)
         self.logger.info(f"Ссылка на таблицу: https://docs.google.com/spreadsheets/d/{self.sheet.id}")
-

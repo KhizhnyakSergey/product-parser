@@ -25,9 +25,9 @@ async def scheduler():
             await main()
             time.sleep(settings.google.repeat_in_seconds)
     except asyncio.CancelledError:
-        print("Завдання планувальника скасовано.")
+        print("Планировщик остановлен")
     except KeyboardInterrupt:
-        print("Планувальник перервав користувач (Ctrl + C).")
+        print("Прерывание пользователем (Ctrl + C).")
 
 async def start_application(app_class):
     app = app_class()
@@ -37,15 +37,15 @@ async def start_application(app_class):
 async def main() -> None:
     app_classes = [
         ApplicationSupraten,
-        ApplicationIek,
-        ApplicationHabsev,
-        ApplicationLuminaled,
-        ApplicationElectromotor,
-        ApplicationVolta, 
-        ApplicationPanlight,
-        ApplicationCablu,
-        ApplicationOkm,
-        ApplicationPolev
+        # ApplicationIek,
+        # ApplicationHabsev,
+        # ApplicationLuminaled,
+        # ApplicationElectromotor,
+        # ApplicationVolta, 
+        # ApplicationPanlight,
+        # ApplicationCablu,
+        # ApplicationOkm,
+        # ApplicationPolev
     ]
 
     for app_class in app_classes:
@@ -60,5 +60,5 @@ if __name__ == "__main__":
         # asyncio.run(main())
         asyncio.run(scheduler())
     except KeyboardInterrupt:
-        print("Завершення роботи користувачем.")
+        print("Завершение роботы пользователем.")
 
